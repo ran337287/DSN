@@ -6,23 +6,7 @@ from torch.autograd import Variable
 from torchvision import transforms
 from torchvision import datasets
 
-def norm_minmax(img,min_norm=0.0,max_norm=1.0):
-    '''
-    input size [batch_size,c,h,w]
-    output size [batch_size,c,h,w]
-    '''
-    avg_img = torch.mean(img,0)
-    min_v = torch.min(avg_img)
-    max_v = torch.max(avg_img)
-    img[img>max_v] = max_v
-    img[img<min_v] = min_v
-    img = (img - min_v) / (max_v -min_v) * (max_norm - min_norm) + min_norm
-    return img
-
 def rec_image(epoch,mode,Rec_scheme,Issource):
-
-    # model_root = 'models'
-    # image_root = os.path.join('dataset', 'svhn')
 
     cuda = True
     cudnn.benchmark = True
@@ -99,8 +83,6 @@ def rec_image(epoch,mode,Rec_scheme,Issource):
     inputv_img = Variable(input_img)
 
     _, _, _, _, rec_img = my_net(inputv_img,Issource,Rec_scheme,1.0)
-    # rec_img = norm_minmax(rec_img,0,1)
-    # print rec_img.size()
     vutils.save_image(input_img, 'svhn_real.png', nrow=8)
     vutils.save_image(rec_img.data, 'svhn_rec.png', nrow=8)
 

@@ -39,47 +39,16 @@ random.seed(manual_seed)
 torch.manual_seed(manual_seed)
 
 # load data
-def norm_minmax(img,min_norm=0.0,max_norm=1.0):
-    '''
-    input size [batch_size,c,h,w]
-    output size [batch_size,c,h,w]
-    '''
-    avg_img = torch.mean(img,0)
-    min_v = torch.min(avg_img)
-    max_v = torch.max(avg_img)
-    img[img > max_v] = max_v
-    img[img < min_v] = min_v
-    img = (img - min_v) / (max_v -min_v) * (max_norm - min_norm) + min_norm
-    return img
-
-def exp_lr_scheduler(optimizer, epoch, init_lr=lr, lr_decay_epoch=lr_decay_epoch, decay_weight=0.1):
-    lr = init_lr*(decay_weight**(epoch/lr_decay_epoch))
-    if epoch % lr_decay_epoch == 0:
-        print('LR is set to {}'.format(lr))
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
-    return optimizer
-
-
 img_src_transform = transforms.Compose([
-    #transforms.ColorJitter(0.4)
-    # transforms.RandomResizedCrop(image_size),
     transforms.Resize(image_size),
-    # transforms.Grayscale(),
     transforms.RandomRotation(20),
     transforms.ToTensor(),
-    # transforms.Lambda(norm_minmax),
-    # transforms.Normalize(mean=(0.5,),std=(0.5,))
 ])
 
 img_tgt_transform = transforms.Compose([
     transforms.Resize(image_size),
-    # transforms.RandomResizedCrop(image_size),
-    # transforms.Grayscale(),
     transforms.RandomRotation(20),
     transforms.ToTensor(),
-    # transforms.Lambda(norm_minmax),
-    # transforms.Normalize(mean=(0.5,),std=(0.5,))
 ])
 
 dataset_source = datasets.SVHN(
@@ -114,7 +83,6 @@ my_net.apply(weights_init)
 
 # setup optimizer
 optimizer = optim.Adam(my_net.parameters(), lr=lr, weight_decay=weight_decay)
-# optimizer = optim.RMSprop(my_net.parameters(), lr=lr, weight_decay=weight_decay)
 
 loss_class = nn.CrossEntropyLoss()
 loss_rec = func.mean_pairwise_square_loss()
@@ -153,17 +121,17 @@ global_iter = 0
 for epoch in xrange(n_epoch):
     dataset_source_iter = iter(datasetloader_source)
     dataset_target_iter = iter(datasetloader_target)
-    # optimizer = exp_lr_scheduler(optimizer, epoch, lr, lr_decay_epoch, decay_weight)
+
     i = 0
     while i < len_iter:
         my_net.zero_grad()
         p_alpha = 0.0
         if global_iter > dann_iter-1:
             p_alpha = 1.0
-        # p = float(i + epoch * len_iter) / n_epoch / len_iter
         p = p_alpha * (global_iter - dann_iter) /(100 *len_iter - dann_iter )
         p = min(p,1.0)
         alpha = 2. / (1. + np.exp( -10 * p))-1
+
         ##### target data ###########
         data_target = dataset_target_iter.next()
         t_img, _ = data_target
@@ -181,24 +149,20 @@ for epoch in xrange(n_epoch):
         input_img.resize_as_(t_img).copy_(t_img)
         inputv_img = Variable(input_img)
         domainv_label = Variable(domain_label)
-        ############################
+        ####### target loss #################
         pri_tgt_feat, shd_tgt_feat, _, pred_tgt_domain, img_tgt_rec = my_net(inputv_img, 'target', Rec_scheme, alpha)
 
         p_alpha = 0.0
         if global_iter > dann_iter - 1:
             p_alpha = 1.0
 
+        # similarity_loss
         err_t_domain = p_alpha * loss_class(pred_tgt_domain, domainv_label)
-        # rec_loss
-        # t_rec_img = norm_minmax(img_tgt_rec.data)
-        # vutil.save_image(t_rec_img, 't_rec_img.png', nrow=8)
+        # reconstrcution_loss
         vutil.save_image(img_tgt_rec.data, 't_rec_img.png', nrow=8)
-        # img_tgt_rec = img_tgt_rec.view(-1, n_channels * image_size * image_size)
-
         t_ori_img = inputv_img.expand(inputv_img.data.shape[0], n_channels, image_size, image_size)
-        # t_ori_img = t_ori_img.contiguous().view(-1, n_channels * image_size * image_size)
         err_t_rec = loss_rec(img_tgt_rec, t_ori_img)
-        # diff_loss
+        # difference_loss
         diff_t_loss = loss_diff(pri_tgt_feat, shd_tgt_feat)
 
         tgt_loss = coeff_alpha * err_t_rec \
@@ -207,13 +171,11 @@ for epoch in xrange(n_epoch):
         tgt_loss.backward()
         optimizer.step()
 
-        my_net.zero_grad()
+
         ##### source data ###########
+        my_net.zero_grad()
         data_source = dataset_source_iter.next()
         s_img, s_label = data_source
-        # ss_img = norm_minmax(s_img,0,1)
-
-        # vutil.save_image(ss_img, 'ss_gray.png')
         vutil.save_image(s_img, 's_gray.png')
         s_label = s_label.long().squeeze()
 
@@ -236,28 +198,23 @@ for epoch in xrange(n_epoch):
         classv_label = Variable(class_label)
         domainv_label = Variable(domain_label)
 
-        ################
+        ###### source loss ##########
         pri_src_feat, shd_src_feat, pred_label, pred_src_domain, img_src_rec = my_net(inputv_img,'source',Rec_scheme,alpha)
-
+        # class loss
         err_s_label = loss_class(pred_label, classv_label)
 
         p_alpha = 0.0
         if global_iter > dann_iter-1:
             p_alpha = 1.0
-
+        # similarity_loss
         err_s_domain = p_alpha * loss_class(pred_src_domain, domainv_label)
 
-        #rec_loss
-        # s_rec_img = norm_minmax(img_src_rec.data)
-        # vutil.save_image(s_rec_img, 's_rec_img.png', nrow=8)
+        # reconstruction_loss
         vutil.save_image(img_src_rec.data, 's_rec_img.png', nrow=8)
-
-        # img_src_rec = img_src_rec.view(-1, n_channels * image_size * image_size)
         s_ori_img = inputv_img
-        # s_ori_img = inputv_img.contiguous().view(-1, n_channels * image_size * image_size)
         err_s_rec = loss_rec(img_src_rec, s_ori_img)
 
-        # diff_loss
+        # difference_loss
         diff_s_loss = loss_diff(pri_src_feat, shd_src_feat)
 
         src_loss = err_s_label + coeff_alpha * err_s_rec \
@@ -266,9 +223,7 @@ for epoch in xrange(n_epoch):
         src_loss.backward()
         optimizer.step()
 
-
-
-        ############ Loss  and upgrade gradient #################
+        ############ Loss  #################
         Loss_class = err_s_label
         Loss_similar = err_s_domain + err_t_domain
         Loss_diff = diff_s_loss + diff_t_loss

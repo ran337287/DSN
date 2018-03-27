@@ -7,18 +7,6 @@ from torch.autograd import Variable
 from torchvision import transforms
 from torchvision import datasets
 
-def norm_minmax(img,min_norm=0.0,max_norm=1.0):
-    '''
-    input size [batch_size,c,h,w]
-    output size [batch_size,c,h,w]
-    '''
-    avg_img = torch.mean(img,0)
-    min_v = torch.min(avg_img)
-    max_v = torch.max(avg_img)
-    img[img > max_v] = max_v
-    img[img < min_v] = min_v
-    img = (img - min_v) / (max_v -min_v) * (max_norm - min_norm) + min_norm
-    return img
 
 def test(epoch,mode,datasource):
     cuda = True
@@ -30,10 +18,7 @@ def test(epoch,mode,datasource):
     # load data
     img_transform = transforms.Compose([
         transforms.Resize(image_size),
-        # transforms.Grayscale(),
         transforms.ToTensor(),
-        # transforms.Lambda(norm_minmax),
-        # transforms.Normalize(mean=(0.5,), std=(0.5,))
     ])
     if mode == 'mnist_trn':
         model_root = 'models'
