@@ -3,10 +3,7 @@ Pytorch implementation of DSNs([Domain Separation Networks](https://arxiv.org/pd
 ### Structure
 We refer to the structure 
 
-![](https://note.youdao.com/yws/public/resource/b9e4ddf4efa502b643f4523e36e2f9bd/xmlnote/93EF1518949F4AEF913AEA8F336D01BE/9491)
-
-![i.jpg](https://note.youdao.com/yws/public/resource/b9e4ddf4efa502b643f4523e36e2f9bd/xmlnote/28821EBAF4494DC6B3B4E90A614E349B/9493)
-
+![a.jpg](https://note.youdao.com/yws/public/resource/b9e4ddf4efa502b643f4523e36e2f9bd/xmlnote/93EF1518949F4AEF913AEA8F336D01BE/9491)
 ### Datasets
 URL:
 
