@@ -35,7 +35,7 @@ class difference_loss(nn.Module):
         private_samples = private_samples.div(pn.expand_as(private_samples)+1e-10)
         shared_samples = shared_samples.div(sn.expand_as(shared_samples)+1e-10)
 
-        diff_loss = torch.sum((shared_samples.mm(private_samples.t())).pow(2), 0)
+        diff_loss = torch.sum((shared_samples.t().mm(private_samples)).pow(2), 0)
 
         if self.reduce:
             diff_loss = torch.mean(diff_loss)
